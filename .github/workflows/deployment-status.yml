@@ -82,10 +82,6 @@ Package Version: ${process.env.VERSION}`;
     name: rollback-preparation
     needs: pre-deployment
     runs-on: ubuntu-latest
-    env:
-      PREV_SHA: ${{ needs.pre-deployment.outputs.prev_sha }}
-      VERSION: ${{ needs.pre-deployment.outputs.version }}
-      ISSUE_NUMBER: ${{ needs.pre-deployment.outputs.issue_number }}
     outputs:
       checksum_val: ${{ steps.checksum.outputs.checksum_val }}
     steps:
@@ -98,6 +94,8 @@ Package Version: ${process.env.VERSION}`;
         run: mkdir -p rollback-assets
 
       - name: Create Executable Rollback Script
+        env:
+          PREV_SHA: ${{ needs.pre-deployment.outputs.prev_sha }}
         run: |
           cat << EOF > rollback-assets/rollback.sh
           #!/bin/bash
@@ -202,6 +200,10 @@ NODE_ENV=production" > rollback-assets/backup/.env.example
 
       - name: Post Rollback Plan Comment
         uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ needs.pre-deployment.outputs.issue_number }}
+          PREV_SHA: ${{ needs.pre-deployment.outputs.prev_sha }}
+          VERSION: ${{ needs.pre-deployment.outputs.version }}
         with:
           script: |
             const owner = context.repo.owner;
@@ -243,12 +245,12 @@ NODE_ENV=production" > rollback-assets/backup/.env.example
     name: post-deployment
     needs: [pre-deployment, rollback-preparation]
     runs-on: ubuntu-latest
-    env:
-      ISSUE_NUMBER: ${{ needs.pre-deployment.outputs.issue_number }}
-      CHECKSUM: ${{ needs.rollback-preparation.outputs.checksum_val }}
     steps:
       - name: Complete Deployment and Close Issue
         uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ needs.pre-deployment.outputs.issue_number }}
+          CHECKSUM: ${{ needs.rollback-preparation.outputs.checksum_val }}
         with:
           script: |
             const owner = context.repo.owner;
